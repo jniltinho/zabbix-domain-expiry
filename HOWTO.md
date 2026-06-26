@@ -1,41 +1,41 @@
-# HOWTO — Configurar no Zabbix 7
+# HOWTO — Zabbix 7 Setup
 
-Guia passo a passo para monitorar expiração de domínios com o binário `check_domain` no **Zabbix 7.x**.
+Step-by-step guide to monitor domain expiration with the `check_domain` binary on **Zabbix 7.x**.
 
-> O template `zbx_domain_expiry.yaml` foi exportado no formato 6.4 e é compatível com Zabbix 7. Os itens do tipo **External check** são executados pelo **Zabbix Server** (ou pelo **Proxy**, se o host monitorado estiver atrás de um proxy).
+> The `zbx_domain_expiry.yaml` template was exported in Zabbix 6.4 format and is compatible with Zabbix 7. **External check** items are executed by the **Zabbix Server** (or by a **Proxy**, if the monitored host is monitored through a proxy).
 
-## Índice
+## Table of contents
 
-1. [Pré-requisitos](#1-pré-requisitos)
-2. [Instalar o binário](#2-instalar-o-binário)
-3. [Configurar o Zabbix Server](#3-configurar-o-zabbix-server)
-4. [Importar o template](#4-importar-o-template)
-5. [Criar o host do domínio](#5-criar-o-host-do-domínio)
-6. [Testar a coleta](#6-testar-a-coleta)
-7. [Ajustar macros e alertas](#7-ajustar-macros-e-alertas)
-8. [Monitorar vários domínios](#8-monitorar-vários-domínios)
-9. [Solução de problemas](#9-solução-de-problemas)
-
----
-
-## 1. Pré-requisitos
-
-| Item | Requisito |
-|------|-----------|
-| Zabbix | 7.0 ou superior |
-| SO do servidor Zabbix | GNU/Linux **amd64** |
-| Acesso | Shell no servidor Zabbix (ou no proxy responsável pelo host) |
-| Rede | Saída HTTPS (RDAP) e TCP/43 (WHOIS) liberadas |
-
-Não é necessário instalar `curl`, `jq`, `whois` nem outras dependências — o binário Go é autocontido.
+1. [Prerequisites](#1-prerequisites)
+2. [Install the binary](#2-install-the-binary)
+3. [Configure the Zabbix Server](#3-configure-the-zabbix-server)
+4. [Import the template](#4-import-the-template)
+5. [Create the domain host](#5-create-the-domain-host)
+6. [Test data collection](#6-test-data-collection)
+7. [Adjust macros and alerts](#7-adjust-macros-and-alerts)
+8. [Monitor multiple domains](#8-monitor-multiple-domains)
+9. [Troubleshooting](#9-troubleshooting)
 
 ---
 
-## 2. Instalar o binário
+## 1. Prerequisites
 
-### Opção A — Release (recomendado)
+| Item | Requirement |
+|------|-------------|
+| Zabbix | 7.0 or higher |
+| Zabbix server OS | GNU/Linux **amd64** |
+| Access | Shell on the Zabbix server (or on the proxy responsible for the host) |
+| Network | Outbound HTTPS (RDAP) and TCP/43 (WHOIS) allowed |
 
-No **servidor Zabbix** (ou no proxy, se aplicável):
+No need to install `curl`, `jq`, `whois`, or other tools — the Go binary is self-contained.
+
+---
+
+## 2. Install the binary
+
+### Option A — Release (recommended)
+
+On the **Zabbix server** (or proxy, if applicable):
 
 ```bash
 VERSION=0.0.1
@@ -44,7 +44,7 @@ tar -xzf "check_domain_${VERSION}_linux_amd64.tar.gz"
 sudo install -m 755 -o zabbix -g zabbix check_domain /usr/lib/zabbix/externalscripts/check_domain
 ```
 
-### Opção B — Compilar no servidor
+### Option B — Build on the server
 
 ```bash
 git clone https://github.com/jniltinho/zabbix-domain-expiry.git
@@ -53,15 +53,15 @@ make build-linux-amd64
 sudo install -m 755 -o zabbix -g zabbix build/check_domain-linux-amd64 /usr/lib/zabbix/externalscripts/check_domain
 ```
 
-### Validar manualmente
+### Validate manually
 
-Execute como usuário `zabbix` para confirmar permissões e conectividade:
+Run as the `zabbix` user to confirm permissions and connectivity:
 
 ```bash
 sudo -u zabbix /usr/lib/zabbix/externalscripts/check_domain -d example.com -r 0 -s 0 -w 30 -c 7
 ```
 
-Saída esperada (JSON em stdout):
+Expected output (JSON on stdout):
 
 ```json
 {"state":"OK","days_left":365,"days_since_expired":0,"expire_date":"2026-08-13","message":"State: OK ; Days left: 365 ; Expire date: 2026-08-13"}
@@ -69,18 +69,18 @@ Saída esperada (JSON em stdout):
 
 ---
 
-## 3. Configurar o Zabbix Server
+## 3. Configure the Zabbix Server
 
-### Diretório de external scripts
+### External scripts directory
 
-Confirme o caminho em `/etc/zabbix/zabbix_server.conf`:
+Confirm the path in `/etc/zabbix/zabbix_server.conf`:
 
 ```ini
 ### Option: ExternalScripts
 ExternalScripts=/usr/lib/zabbix/externalscripts
 ```
 
-Se alterar o caminho, reinicie o servidor:
+If you change the path, restart the server:
 
 ```bash
 sudo systemctl restart zabbix-server
@@ -88,15 +88,15 @@ sudo systemctl restart zabbix-server
 
 ### Zabbix Proxy
 
-Se o host do domínio for monitorado por um **proxy**, o binário deve estar instalado no **proxy**, não apenas no servidor central. Configure `ExternalScripts` em `/etc/zabbix/zabbix_proxy.conf` e reinicie o proxy:
+If the domain host is monitored by a **proxy**, the binary must be installed on the **proxy**, not only on the central server. Set `ExternalScripts` in `/etc/zabbix/zabbix_proxy.conf` and restart the proxy:
 
 ```bash
 sudo systemctl restart zabbix-proxy
 ```
 
-### Permissões
+### Permissions
 
-O processo do Zabbix executa os scripts como usuário `zabbix`. Garanta:
+Zabbix runs external scripts as the `zabbix` user. Ensure:
 
 ```bash
 ls -l /usr/lib/zabbix/externalscripts/check_domain
@@ -105,160 +105,160 @@ ls -l /usr/lib/zabbix/externalscripts/check_domain
 
 ---
 
-## 4. Importar o template
+## 4. Import the template
 
-1. Acesse a interface web do Zabbix 7
-2. Vá em **Data collection → Templates**
-3. Clique em **Import** (canto superior direito)
-4. Selecione o arquivo `zbx_domain_expiry.yaml`
-5. Na tela de importação, marque:
-   - **Templates** — Create new / Update existing (conforme necessário)
+1. Open the Zabbix 7 web interface
+2. Go to **Data collection → Templates**
+3. Click **Import** (top right)
+4. Select `zbx_domain_expiry.yaml`
+5. On the import screen, enable:
+   - **Templates** — Create new / Update existing (as needed)
    - **Items**, **Triggers**, **Template groups**
-6. Clique em **Import**
+6. Click **Import**
 
-Após a importação, o template **Domain Expiry** deve aparecer em **Data collection → Templates**.
+After import, the **Domain Expiry** template should appear under **Data collection → Templates**.
 
-### Atualizar template existente
+### Upgrading an existing template
 
-Para upgrade de versões anteriores (shell script `check_domain.sh`):
+When upgrading from older versions (shell script `check_domain.sh`):
 
-1. Substitua o binário em `externalscripts/`
-2. Reimporte `zbx_domain_expiry.yaml` com **Update existing** habilitado
-3. Confirme que a key do item master mudou de `check_domain.sh[...]` para `check_domain[...]`
-
----
-
-## 5. Criar o host do domínio
-
-O template usa `{HOST.HOST}` como nome do domínio. O **Host name** do host no Zabbix deve ser exatamente o domínio a monitorar.
-
-1. Vá em **Data collection → Hosts**
-2. Clique em **Create host**
-3. Preencha:
-
-| Campo | Exemplo | Observação |
-|-------|---------|------------|
-| **Host name** | `example.com` | Deve ser o domínio real |
-| **Visible name** | `Example.com expiry` | Apenas exibição |
-| **Host groups** | `Domains` (ou outro) | Opcional |
-| **Interfaces** | — | Não é necessária interface para external check |
-
-4. Na aba **Templates**, adicione o template **Domain Expiry**
-5. Clique em **Add** / **Update**
-
-> **Importante:** não use prefixos no Host name (ex.: `zabbix.example.com` em vez de `example.com`), a menos que esse seja realmente o domínio a consultar.
+1. Replace the binary in `externalscripts/`
+2. Re-import `zbx_domain_expiry.yaml` with **Update existing** enabled
+3. Confirm the master item key changed from `check_domain.sh[...]` to `check_domain[...]`
 
 ---
 
-## 6. Testar a coleta
+## 5. Create the domain host
 
-### Executar item manualmente
+The template uses `{HOST.HOST}` as the domain name. The Zabbix **Host name** must be the exact domain to monitor.
 
-1. Abra o host criado → aba **Items**
-2. Localize o item **Check Domain** (tipo External check)
-3. Marque o item e clique em **Execute now**
-4. Aguarde alguns segundos e verifique **Latest data**
+1. Go to **Data collection → Hosts**
+2. Click **Create host**
+3. Fill in:
 
-### Itens esperados
+| Field | Example | Notes |
+|-------|---------|-------|
+| **Host name** | `example.com` | Must be the actual domain |
+| **Visible name** | `Example.com expiry` | Display only |
+| **Host groups** | `Domains` (or other) | Optional |
+| **Interfaces** | — | No interface required for external checks |
 
-| Item | Valor esperado |
+4. On the **Templates** tab, add the **Domain Expiry** template
+5. Click **Add** / **Update**
+
+> **Important:** do not add prefixes to the Host name (e.g. `zabbix.example.com` instead of `example.com`) unless that is the domain you intend to query.
+
+---
+
+## 6. Test data collection
+
+### Execute the item manually
+
+1. Open the created host → **Items** tab
+2. Find the **Check Domain** item (External check type)
+3. Select the item and click **Execute now**
+4. Wait a few seconds and check **Latest data**
+
+### Expected items
+
+| Item | Expected value |
 |------|----------------|
-| Check Domain | JSON completo |
-| State | `OK`, `WARNING`, `CRITICAL` ou `UNKNOWN` |
-| Days Left | Número de dias restantes |
-| Expire Date | Data no formato `YYYY-MM-DD` |
-| Message | Mensagem descritiva do check |
+| Check Domain | Full JSON response |
+| State | `OK`, `WARNING`, `CRITICAL`, or `UNKNOWN` |
+| Days Left | Number of days remaining |
+| Expire Date | Date in `YYYY-MM-DD` format |
+| Message | Descriptive status message |
 
-### Verificar triggers
+### Verify triggers
 
-Em **Monitoring → Problems**, confirme que não há alertas indevidos após a primeira coleta bem-sucedida.
+Under **Monitoring → Problems**, confirm there are no false alerts after the first successful collection.
 
 ---
 
-## 7. Ajustar macros e alertas
+## 7. Adjust macros and alerts
 
-As macros podem ser definidas no template ou sobrescritas por host.
+Macros can be set on the template or overridden per host.
 
-Vá em **Data collection → Templates → Domain Expiry → Macros** (ou nas macros do host).
+Go to **Data collection → Templates → Domain Expiry → Macros** (or host-level macros).
 
-| Macro | Padrão | Descrição |
-|-------|--------|-----------|
-| `{$EXP_CRIT}` | `7` | Dias restantes para alerta **High** |
-| `{$EXP_WARN}` | `30` | Dias restantes para alerta **Warning** |
-| `{$RDAP_SERVER}` | *(vazio)* | URL do servidor RDAP; vazio usa bootstrap IANA |
-| `{$WHOIS_SERVER}` | *(vazio)* | Servidor WHOIS; vazio usa lookup interno |
+| Macro | Default | Description |
+|-------|---------|-------------|
+| `{$EXP_CRIT}` | `7` | Days remaining before a **High** alert |
+| `{$EXP_WARN}` | `30` | Days remaining before a **Warning** alert |
+| `{$RDAP_SERVER}` | *(empty)* | RDAP server URL; empty uses IANA bootstrap |
+| `{$WHOIS_SERVER}` | *(empty)* | WHOIS server; empty uses built-in lookup |
 
-### Exemplo — TLD com RDAP customizado
+### Example — custom RDAP for a TLD
 
-Para um domínio `.uk`, se necessário:
+For a `.uk` domain, if needed:
 
 ```
 {$RDAP_SERVER} = https://rdap.nominet.uk/uk-domain/
 ```
 
-Deixe vazio para a maioria dos domínios — o binário resolve o servidor RDAP automaticamente.
+Leave empty for most domains — the binary resolves the RDAP server automatically.
 
-### Triggers incluídas
+### Included triggers
 
-| Prioridade | Condição |
-|------------|----------|
-| Not classified | Estado `UNKNOWN` (falha na consulta) |
-| Disaster | Domínio expirado |
-| High | Expira em ≤ `{$EXP_CRIT}` dias |
-| Warning | Expira em ≤ `{$EXP_WARN}` dias |
-
----
-
-## 8. Monitorar vários domínios
-
-Cada domínio = **um host** no Zabbix.
-
-```
-Host: example.com     → template Domain Expiry
-Host: meusite.com.br  → template Domain Expiry
-Host: outro.org       → template Domain Expiry
-```
-
-O intervalo padrão de coleta é **1 dia** (`1d`), adequado para evitar rate limit de servidores WHOIS/RDAP. Para alterar:
-
-1. Abra o item **Check Domain** no template ou no host
-2. Ajuste **Update interval** (ex.: `12h`, `1d`)
+| Priority | Condition |
+|----------|-----------|
+| Not classified | State is `UNKNOWN` (lookup failure) |
+| Disaster | Domain has expired |
+| High | Expires in ≤ `{$EXP_CRIT}` days |
+| Warning | Expires in ≤ `{$EXP_WARN}` days |
 
 ---
 
-## 9. Solução de problemas
+## 8. Monitor multiple domains
 
-### Item em estado NOT SUPPORTED
+One domain = **one host** in Zabbix.
 
-| Causa | Solução |
-|-------|---------|
-| Binário ausente | Instale em `/usr/lib/zabbix/externalscripts/check_domain` |
-| Sem permissão de execução | `chmod 755` e owner `zabbix:zabbix` |
-| Caminho `ExternalScripts` incorreto | Verifique `zabbix_server.conf` / `zabbix_proxy.conf` |
-| Script no servidor errado | Instale no proxy se o host usa proxy |
+```
+Host: example.com     → Domain Expiry template
+Host: meusite.com.br  → Domain Expiry template
+Host: outro.org       → Domain Expiry template
+```
+
+The default collection interval is **1 day** (`1d`), which helps avoid WHOIS/RDAP rate limits. To change it:
+
+1. Open the **Check Domain** item on the template or host
+2. Adjust **Update interval** (e.g. `12h`, `1d`)
+
+---
+
+## 9. Troubleshooting
+
+### Item in NOT SUPPORTED state
+
+| Cause | Solution |
+|-------|----------|
+| Binary missing | Install at `/usr/lib/zabbix/externalscripts/check_domain` |
+| No execute permission | `chmod 755` and owner `zabbix:zabbix` |
+| Wrong `ExternalScripts` path | Check `zabbix_server.conf` / `zabbix_proxy.conf` |
+| Script on wrong server | Install on the proxy if the host uses a proxy |
 
 ### State = UNKNOWN
 
-Teste manual com debug:
+Test manually with debug:
 
 ```bash
 sudo -u zabbix /usr/lib/zabbix/externalscripts/check_domain -d example.com -r 0 -s 0 -z
 ```
 
-Mensagens de debug vão para **stderr**; o JSON de resultado continua em stdout.
+Debug messages go to **stderr**; the JSON result is still written to stdout.
 
-Causas comuns:
+Common causes:
 
-- Domínio inexistente ou sem dados de expiração pública
-- Bloqueio de rede (firewall sem saída HTTPS/43)
-- Rate limit do servidor WHOIS (aguarde ou aumente o intervalo de coleta)
-- TLD com formato RDAP não padrão
+- Domain does not exist or has no public expiration data
+- Network blocked (firewall without outbound HTTPS/43)
+- WHOIS server rate limit (wait or increase collection interval)
+- TLD with non-standard RDAP URL format
 
-### JSONPath não extrai valores
+### JSONPath does not extract values
 
-Confirme que o item **Check Domain** retorna JSON válido em **Latest data**. Os itens dependentes (`Days Left`, `State`, etc.) dependem desse master.
+Confirm the **Check Domain** item returns valid JSON in **Latest data**. Dependent items (`Days Left`, `State`, etc.) rely on this master item.
 
-### Ver logs do Zabbix
+### Zabbix logs
 
 ```bash
 # RHEL/Rocky
@@ -268,9 +268,9 @@ sudo tail -f /var/log/zabbix/zabbix_server.log
 sudo tail -f /var/log/zabbix-server/zabbix_server.log
 ```
 
-Procure por erros relacionados a `check_domain` ou `External script`.
+Look for errors related to `check_domain` or `External script`.
 
-### Testar conectividade RDAP/WHOIS
+### Test RDAP/WHOIS connectivity
 
 ```bash
 curl -s "https://rdap.org/domain/example.com" | head
@@ -279,9 +279,9 @@ whois example.com | head
 
 ---
 
-## Referências
+## References
 
 - [Zabbix 7 — External check](https://www.zabbix.com/documentation/7.0/en/manual/config/items/itemtypes/external)
 - [Zabbix 7 — Template import](https://www.zabbix.com/documentation/7.0/en/manual/xml_export_import/templates)
-- [Repositório do projeto](https://github.com/jniltinho/zabbix-domain-expiry)
+- [Project repository](https://github.com/jniltinho/zabbix-domain-expiry)
 - [README](README.md)
