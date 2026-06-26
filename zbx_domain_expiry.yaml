@@ -8,10 +8,10 @@ zabbix_export:
       template: 'Domain Expiry'
       name: 'Domain Expiry'
       description: |
-        Template version: 2.0.0
-        Downloaded from: https://github.com/a-stoyanov/zabbix-domain-expiry
+        Template version: 0.0.1
+        Downloaded from: https://github.com/jniltinho/zabbix-domain-expiry
       vendor:
-        name: github.com/a-stoyanov
+        name: github.com/jniltinho
         version: 6.4-0
       groups:
         - name: Templates
@@ -106,7 +106,7 @@ zabbix_export:
         - macro: '{$RDAP_SERVER}'
           description: 'Specify which RDAP server to use. Default empty value will use IANA lookup'
         - macro: '{$WHOIS_SERVER}'
-          description: 'Specify which WHOIS server to use. Default empty value will use the whois utility config (rfc-3912 lookup)'
+          description: 'Specify which WHOIS server to use. Default empty value will use built-in WHOIS lookup'
   triggers:
     - uuid: 126653ca5057472c9499f5bcf74b17ba
       expression: |
