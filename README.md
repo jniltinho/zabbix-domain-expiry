@@ -2,7 +2,7 @@
 
 Monitor domain expiration dates in Zabbix using RDAP or WHOIS.
 
-Version **2.0.0** ships a self-contained Go binary (`check_domain`) that replaces the original shell script. No runtime dependencies — networking, RDAP/WHOIS parsing, and JSON output are all built in using the Go standard library.
+Go fork of [a-stoyanov/zabbix-domain-expiry](https://github.com/a-stoyanov/zabbix-domain-expiry) with a self-contained binary (`check_domain`) that replaces the original shell script. No runtime dependencies — networking, RDAP/WHOIS parsing, and JSON output are all built in using the Go standard library.
 
 ## Features
 
@@ -11,20 +11,21 @@ Version **2.0.0** ships a self-contained Go binary (`check_domain`) that replace
 - **JSON output** — structured response for Zabbix JSONPath preprocessing
 - **Debug mode** — detailed diagnostics written to stderr
 - **Zabbix template** — ready-to-import template with items, triggers, and macros
+- **GitHub releases** — pre-built `linux/amd64` binaries published on version tags
 
 ## Requirements
 
 | Component | Version |
 |-----------|---------|
 | Zabbix Server/Agent | 6.4 or higher |
-| OS | GNU/Linux (amd64 or arm64) |
+| OS | GNU/Linux amd64 |
 
 To **build from source**, Go 1.21 or later is required.
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/a-stoyanov/zabbix-domain-expiry.git
+git clone https://github.com/jniltinho/zabbix-domain-expiry.git
 cd zabbix-domain-expiry
 make install          # builds and installs to /usr/lib/zabbix/externalscripts/
 ```
@@ -33,36 +34,39 @@ Import `zbx_domain_expiry.yaml` into Zabbix, then create a host named after the 
 
 ## Installation
 
-### Option 1 — Build and install (recommended)
+### Option 1 — Download a release (recommended)
+
+Download the latest release from the [releases page](https://github.com/jniltinho/zabbix-domain-expiry/releases):
 
 ```bash
+VERSION=0.0.1
+curl -LO "https://github.com/jniltinho/zabbix-domain-expiry/releases/download/v${VERSION}/check_domain_${VERSION}_linux_amd64.tar.gz"
+tar -xzf "check_domain_${VERSION}_linux_amd64.tar.gz"
+install -m 755 check_domain /usr/lib/zabbix/externalscripts/check_domain
+```
+
+The tarball includes `check_domain` and `zbx_domain_expiry.yaml`.
+
+### Option 2 — Build and install from source
+
+```bash
+git clone https://github.com/jniltinho/zabbix-domain-expiry.git
+cd zabbix-domain-expiry
 make install
 ```
 
 This compiles a static binary and copies it to `/usr/lib/zabbix/externalscripts/check_domain`.
 
-### Option 2 — Cross-compile
-
-Build for a specific platform without UPX compression:
+### Option 3 — Cross-compile
 
 ```bash
 make build-linux-amd64    # build/check_domain-linux-amd64
-make build-linux-arm64    # build/check_domain-linux-arm64
-make build-all            # both targets
 ```
 
-Copy the appropriate binary to the Zabbix external scripts directory:
+Copy the binary to the Zabbix external scripts directory:
 
 ```bash
 install -m 755 build/check_domain-linux-amd64 /usr/lib/zabbix/externalscripts/check_domain
-```
-
-### Option 3 — Download a release binary
-
-If a pre-built binary is available from the [releases page](https://github.com/a-stoyanov/zabbix-domain-expiry/releases), copy it directly:
-
-```bash
-install -m 755 check_domain /usr/lib/zabbix/externalscripts/check_domain
 ```
 
 ### Zabbix template
@@ -170,13 +174,22 @@ check_domain -V                       # print version as JSON
 ```bash
 make build              # static binary with UPX compression (if available)
 make build-nocompress   # static binary without UPX
-make build-all          # cross-compile linux/amd64 and linux/arm64
+make build-linux-amd64  # cross-compile for linux/amd64
 make test               # run unit tests
 make run ARGS='-d example.com'   # build and run
 make clean              # remove build artifacts
 ```
 
 The binary is built with `CGO_ENABLED=0` for a fully static, portable executable.
+
+### Releases
+
+Pushing a version tag (`v*`) triggers the GitHub Actions workflow, which builds a `linux/amd64` binary and publishes a GitHub release:
+
+```bash
+git tag v0.0.2
+git push origin v0.0.2
+```
 
 ## Debugging
 
@@ -199,6 +212,7 @@ whois example.com
 - WHOIS date parsing supports common registrar formats but may fail on non-standard responses
 - WHOIS rate limits can cause `UNKNOWN` states — the default 1-day check interval is conservative
 - Some TLDs (e.g. `.uk`, `.br`) use non-standard RDAP URL paths; see `adjustURL()` in `internal/rdap/rdap.go`
+- Forked from [a-stoyanov/zabbix-domain-expiry](https://github.com/a-stoyanov/zabbix-domain-expiry); original shell script by [glensc/monitoring-plugin-check_domain](https://github.com/glensc/monitoring-plugin-check_domain)
 
 ## License
 
