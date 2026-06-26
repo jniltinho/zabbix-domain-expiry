@@ -1,134 +1,205 @@
 # zabbix-domain-expiry
 
-Monitor domain expiration dates using RDAP or WHOIS protocols.
+Monitor domain expiration dates in Zabbix using RDAP or WHOIS.
 
-</br>
+Version **2.0.0** ships a self-contained Go binary (`check_domain`) that replaces the original shell script. No runtime dependencies — networking, RDAP/WHOIS parsing, and JSON output are all built in using the Go standard library.
 
 ## Features
-- **(NEW) RDAP and WHOIS Support**: Queries domain expiration via RDAP (preferred) with fallback to WHOIS.
-- **(NEW) JSON Output**: Script outputs JSON for easy parsing by Zabbix.
-- **(NEW) Debug Mode**: Detailed debug output for troubleshooting.
+
+- **RDAP and WHOIS** — queries expiration via RDAP (preferred) with automatic fallback to WHOIS
+- **Zero runtime dependencies** — static binary, no `curl`, `jq`, `whois`, or other tools required
+- **JSON output** — structured response for Zabbix JSONPath preprocessing
+- **Debug mode** — detailed diagnostics written to stderr
+- **Zabbix template** — ready-to-import template with items, triggers, and macros
 
 ## Requirements
-- **Zabbix Server/Agent**: Version 6.4 or higher
-- **OS**: GNU/Linux systems
-- **Shell Script Dependencies**:
-  - `curl`: For RDAP queries.
-  - `mktemp`: For temporary files.
-  - `date`: For date calculations.
-  - `whois`: For WHOIS queries.
-  - `grep`: For parsing output.
-  - `awk`: For parsing WHOIS and RDAP data.
-  - `jq`: For parsing RDAP JSON responses.
 
-## Tested on
-- **OS**: RHEL/Rocky (bash) and Debian/Ubuntu (dash)
-- **Zabbix Server**: 6.4
-- **Note**: Shell script is *mostly* POSIX compliant so should be widely compatible
+| Component | Version |
+|-----------|---------|
+| Zabbix Server/Agent | 6.4 or higher |
+| OS | GNU/Linux (amd64 or arm64) |
 
-## Installation (Zabbix server)
+To **build from source**, Go 1.21 or later is required.
 
-### Install Dependencies
-Ensure the required dependencies are installed on your system.
-
-**For RHEL/Rocky**:
-```bash
-sudo dnf install -y epel-release
-sudo dnf install -y curl coreutils whois grep gawk jq
-```
-
-**For Debian/Ubuntu**:
-```bash
-sudo apt update
-sudo apt install -y curl coreutils whois grep gawk jq
-```
-
-### Setup Steps
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/a-stoyanov/zabbix-domain-expiry.git
-   cd zabbix-domain-expiry
-   ```
-2. Copy shell script `check_domain.sh` to your Zabbix server external scripts dir (default: `/usr/lib/zabbix/externalscripts/`)
-3. Make it executable (e.g. `chmod +x /usr/lib/zabbix/externalscripts/check_domain.sh`)
-4. Import yaml template `zbx_domain_expiry.yaml` to your zabbix server
-5. Create a host with a domain name (e.g: `example.com`) as the Host name and attach the template to the host
-
-## Upgrading
-
-If you are upgrading from the old version just import/overwrite the existing template and copy/overwite the old shell script with new version
-
-## Configuration
-
-### Template Macros
-The template uses the following macros, configurable at the host or template level:
-
-| Macro            | Default Value | Description                                                                 |
-|------------------|---------------|-----------------------------------------------------------------------------|
-| `{$EXP_CRIT}`    | 7             | Days remaining before triggering a HIGH (critical) alert.                   |
-| `{$EXP_WARN}`    | 30            | Days remaining before triggering a WARNING alert.                           |
-| `{$RDAP_SERVER}` | (empty)       | Specify which RDAP server to use. Default empty value will use IANA lookup.  |
-| `{$WHOIS_SERVER}`| (empty)       | Specify which WHOIS server to use. Default empty value will use rfc-3912 lookup. |
-
-### Template Items
-The template includes the following items to monitor domain expiration:
-
-| Name                | Key                                    | Type       | Value Type | Description                                                                 |
-|---------------------|----------------------------------------|------------|------------|-----------------------------------------------------------------------------|
-| Days Left           | `check_domain.days_left`               | Dependent  | Float      | Number of days until the domain expires.                                    |
-| Days Since Expired  | `check_domain.days_since_expired`      | Dependent  | Float      | Number of days since the domain expired (0 if not expired).                 |
-| Expire Date         | `check_domain.expire_date`             | Dependent  | Text       | Domain expiration date in YYYY-MM-DD format.                                |
-| Message             | `check_domain.message`                 | Dependent  | Text       | Status message returned by the script.                                      |
-| State               | `check_domain.state`                   | Dependent  | Text       | Domain status: OK, WARNING, CRITICAL, or UNKNOWN.                           |
-| Check Domain        | `check_domain.sh[...]`                 | External   | Text       | Executes the external script to check domain status.                        |
-
-### Template Triggers
-The template defines the following triggers for alerting:
-
-| Name                                    | Expression                                                                 | Priority  | Description                                                                 |
-|-----------------------------------------|---------------------------------------------------------------------------|-----------|-----------------------------------------------------------------------------|
-| Domain Expiry: {HOST.HOST} - {ITEM.LASTVALUE2} | `last(/Domain Expiry/check_domain.state)="UNKNOWN" and last(/Domain Expiry/check_domain.message)<>0` | Not Classified   | Alerts if the script cannot determine the domain's expiration status.        |
-| Domain Expiry: {HOST.HOST} has expired  | `last(/Domain Expiry/check_domain.state)="CRITICAL" and last(/Domain Expiry/check_domain.days_since_expired)>0 and last(/Domain Expiry/check_domain.expire_date)<>0` | Disaster  | Alerts if the domain has expired.                                           |
-| Domain Expiry: {HOST.HOST} will expire soon (Critical) | `last(/Domain Expiry/check_domain.state)="CRITICAL" and last(/Domain Expiry/check_domain.days_left)<={$EXP_CRIT} and last(/Domain Expiry/check_domain.expire_date)<>0` | High      | Alerts if days remaining are below the critical threshold (`{$EXP_CRIT}`).  |
-| Domain Expiry: {HOST.HOST} will expire soon (Warning)  | `last(/Domain Expiry/check_domain.state)="WARNING" and last(/Domain Expiry/check_domain.days_left)<={$EXP_WARN} and last(/Domain Expiry/check_domain.expire_date)<>0` | Warning   | Alerts if days remaining are below the warning threshold (`{$EXP_WARN}`).   |
-
-### Script Usage
-The `check_domain.sh` script can be run manually for testing:
+## Quick Start
 
 ```bash
-./check_domain.sh -d example.com
-./check_domain.sh -d example.com -r 'https://rdap.example.com' -s 'whois.example.com' -w 30 -c 7
+git clone https://github.com/a-stoyanov/zabbix-domain-expiry.git
+cd zabbix-domain-expiry
+make install          # builds and installs to /usr/lib/zabbix/externalscripts/
 ```
 
-**Options**:
-- `-d, --domain`: Domain name to check (required).
-- `-w, --warning`: Warning threshold in days (default: 30).
-- `-c, --critical`: Critical threshold in days (default: 7).
-- `-r, --rdap-server`: RDAP server URL (use `""` for IANA lookup).
-- `-s, --whois-server`: WHOIS server hostname (use `""` for default lookup).
-- `-P, --path`: Path to `whois` executable.
-- `-z, --debug`: Enable debug output to stderr.
-- `-h, --help`: Display help.
-- `-V, --version`: Display version in JSON format.
+Import `zbx_domain_expiry.yaml` into Zabbix, then create a host named after the domain (e.g. `example.com`) and attach the **Domain Expiry** template.
 
-**Example Output**:
+## Installation
+
+### Option 1 — Build and install (recommended)
+
+```bash
+make install
+```
+
+This compiles a static binary and copies it to `/usr/lib/zabbix/externalscripts/check_domain`.
+
+### Option 2 — Cross-compile
+
+Build for a specific platform without UPX compression:
+
+```bash
+make build-linux-amd64    # build/check_domain-linux-amd64
+make build-linux-arm64    # build/check_domain-linux-arm64
+make build-all            # both targets
+```
+
+Copy the appropriate binary to the Zabbix external scripts directory:
+
+```bash
+install -m 755 build/check_domain-linux-amd64 /usr/lib/zabbix/externalscripts/check_domain
+```
+
+### Option 3 — Download a release binary
+
+If a pre-built binary is available from the [releases page](https://github.com/a-stoyanov/zabbix-domain-expiry/releases), copy it directly:
+
+```bash
+install -m 755 check_domain /usr/lib/zabbix/externalscripts/check_domain
+```
+
+### Zabbix template
+
+1. In Zabbix, go to **Data collection → Templates → Import** and upload `zbx_domain_expiry.yaml`
+2. Create a host with the domain as the host name (e.g. `example.com`)
+3. Link the **Domain Expiry** template to the host
+
+## Upgrading from v1.x (shell script)
+
+1. Import/overwrite the template (`zbx_domain_expiry.yaml`) — the external check item key changed from `check_domain.sh[...]` to `check_domain[...]`
+2. Replace `check_domain.sh` with the new `check_domain` binary in `/usr/lib/zabbix/externalscripts/`
+3. Remove shell script dependencies (`curl`, `jq`, `whois`, etc.) — they are no longer needed
+
+The legacy shell script (`check_domain.sh`) is kept in the repository for reference but is no longer maintained.
+
+## Usage
+
+```bash
+check_domain -d example.com
+check_domain -d example.com -r 'https://rdap.example.com' -s whois.example.com -w 30 -c 7
+check_domain -d example.com -z          # debug output to stderr
+check_domain -V                       # print version as JSON
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `-d`, `--domain` | Domain name to check (**required**) |
+| `-w`, `--warning` | Warning threshold in days (default: `30`) |
+| `-c`, `--critical` | Critical threshold in days (default: `7`) |
+| `-r`, `--rdap-server` | RDAP server URL (`""` or `0` for IANA bootstrap lookup) |
+| `-s`, `--whois-server` | WHOIS server hostname (`""` or `0` for default lookup) |
+| `-P`, `--path` | Accepted for backward compatibility; ignored by the Go binary |
+| `-z`, `--debug` | Enable debug output to stderr |
+| `-h`, `--help` | Display help |
+| `-V`, `--version` | Display version in JSON format |
+
+### Example output
+
 ```json
 {"state":"OK","days_left":365,"days_since_expired":0,"expire_date":"2026-06-24","message":"State: OK ; Days left: 365 ; Expire date: 2026-06-24"}
 ```
 
+### Exit codes
+
+| Code | State | Meaning |
+|------|-------|---------|
+| `0` | OK | Domain is valid and not near expiration |
+| `1` | WARNING | Days remaining ≤ warning threshold |
+| `2` | CRITICAL | Days remaining ≤ critical threshold, or domain has expired |
+| `3` | UNKNOWN | Lookup or parsing failed |
+
+## Zabbix Template Reference
+
+### Macros
+
+| Macro | Default | Description |
+|-------|---------|-------------|
+| `{$EXP_CRIT}` | `7` | Days remaining before a **High** alert |
+| `{$EXP_WARN}` | `30` | Days remaining before a **Warning** alert |
+| `{$RDAP_SERVER}` | *(empty)* | Override RDAP server; empty uses IANA bootstrap |
+| `{$WHOIS_SERVER}` | *(empty)* | Override WHOIS server; empty uses built-in lookup |
+
+### Items
+
+| Name | Key | Type | Description |
+|------|-----|------|-------------|
+| Check Domain | `check_domain[...]` | External | Runs the external check script |
+| Days Left | `check_domain.days_left` | Dependent | Days until expiration |
+| Days Since Expired | `check_domain.days_since_expired` | Dependent | Days since expiration (0 if active) |
+| Expire Date | `check_domain.expire_date` | Dependent | Expiration date (`YYYY-MM-DD`) |
+| Message | `check_domain.message` | Dependent | Status message from the check |
+| State | `check_domain.state` | Dependent | `OK`, `WARNING`, `CRITICAL`, or `UNKNOWN` |
+
+### Triggers
+
+| Priority | Condition |
+|----------|-----------|
+| Not classified | State is `UNKNOWN` |
+| Disaster | Domain has expired |
+| High | State is `CRITICAL` and days left ≤ `{$EXP_CRIT}` |
+| Warning | State is `WARNING` and days left ≤ `{$EXP_WARN}` |
+
+## Development
+
+### Project layout
+
+```
+.
+├── main.go                  # entry point
+├── internal/
+│   ├── checkdomain/         # CLI parsing and check orchestration
+│   ├── output/              # JSON output and exit codes
+│   ├── rdap/                # RDAP client (IANA bootstrap + queries)
+│   └── whois/               # WHOIS client and date parsing
+├── zbx_domain_expiry.yaml   # Zabbix template
+├── Makefile
+└── check_domain.sh          # legacy shell script (deprecated)
+```
+
+### Makefile targets
+
+```bash
+make build              # static binary with UPX compression (if available)
+make build-nocompress   # static binary without UPX
+make build-all          # cross-compile linux/amd64 and linux/arm64
+make test               # run unit tests
+make run ARGS='-d example.com'   # build and run
+make clean              # remove build artifacts
+```
+
+The binary is built with `CGO_ENABLED=0` for a fully static, portable executable.
+
 ## Debugging
-- Enable debug mode in the script with `-z`:
-  ```bash
-  ./check_domain.sh -d example.com -z
-  ```
-- Check Zabbix logs for issues with script execution.
-- Verify RDAP/WHOIS server availability and response format outside of script
+
+```bash
+check_domain -d example.com -z
+```
+
+Debug messages are written to stderr; stdout always contains the JSON result. Check Zabbix server logs if the external check fails silently.
+
+Verify RDAP/WHOIS responses independently when troubleshooting UNKNOWN states:
+
+```bash
+curl -s "https://rdap.org/domain/example.com" | jq .
+whois example.com
+```
 
 ## Notes
-- The script prioritizes RDAP for faster, structured queries but falls back to WHOIS if RDAP fails.
-- WHOIS awk parsing supports various date formats but may fail if whois query returns non-standard responses (no awk pattern match).
-- Rate limits on WHOIS servers may trigger UNKNOWN states; increase or use custom check interval to mitigate (the default 1d is very reasonable).
-- For some specific TLDs (e.g: `.uk`, `.br`) RDAP URL paths may have to be adjusted due to non-standard URL format. See `adjust_rdap_url()` function, which already handles /uk/ path adjustment.
+
+- RDAP is tried first for faster, structured queries; WHOIS is used as fallback
+- WHOIS date parsing supports common registrar formats but may fail on non-standard responses
+- WHOIS rate limits can cause `UNKNOWN` states — the default 1-day check interval is conservative
+- Some TLDs (e.g. `.uk`, `.br`) use non-standard RDAP URL paths; see `adjustURL()` in `internal/rdap/rdap.go`
 
 ## License
-This project is licensed under the Apache License 2.0
+
+This project is licensed under the [Apache License 2.0](LICENSE).

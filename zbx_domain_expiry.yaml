@@ -29,7 +29,7 @@ zabbix_export:
               error_handler: CUSTOM_VALUE
               error_handler_params: '0'
           master_item:
-            key: 'check_domain.sh["-d",{HOST.HOST},"-r",{$RDAP_SERVER},"-s",{$WHOIS_SERVER},"-w",{$EXP_WARN},"-c",{$EXP_CRIT}]'
+            key: 'check_domain["-d",{HOST.HOST},"-r",{$RDAP_SERVER},"-s",{$WHOIS_SERVER},"-w",{$EXP_WARN},"-c",{$EXP_CRIT}]'
         - uuid: 5a55bf6bf9b8490bb058982428572485
           name: 'Days Since Expired'
           type: DEPENDENT
@@ -43,7 +43,7 @@ zabbix_export:
               error_handler: CUSTOM_VALUE
               error_handler_params: '0'
           master_item:
-            key: 'check_domain.sh["-d",{HOST.HOST},"-r",{$RDAP_SERVER},"-s",{$WHOIS_SERVER},"-w",{$EXP_WARN},"-c",{$EXP_CRIT}]'
+            key: 'check_domain["-d",{HOST.HOST},"-r",{$RDAP_SERVER},"-s",{$WHOIS_SERVER},"-w",{$EXP_WARN},"-c",{$EXP_CRIT}]'
         - uuid: 0e104f2540204ac686072bd6cec91a86
           name: 'Expire Date'
           type: DEPENDENT
@@ -58,7 +58,7 @@ zabbix_export:
               error_handler: CUSTOM_VALUE
               error_handler_params: '0'
           master_item:
-            key: 'check_domain.sh["-d",{HOST.HOST},"-r",{$RDAP_SERVER},"-s",{$WHOIS_SERVER},"-w",{$EXP_WARN},"-c",{$EXP_CRIT}]'
+            key: 'check_domain["-d",{HOST.HOST},"-r",{$RDAP_SERVER},"-s",{$WHOIS_SERVER},"-w",{$EXP_WARN},"-c",{$EXP_CRIT}]'
         - uuid: 99f25b8648814596a72f66f3e3db01cf
           name: Message
           type: DEPENDENT
@@ -71,11 +71,11 @@ zabbix_export:
               parameters:
                 - $.message
           master_item:
-            key: 'check_domain.sh["-d",{HOST.HOST},"-r",{$RDAP_SERVER},"-s",{$WHOIS_SERVER},"-w",{$EXP_WARN},"-c",{$EXP_CRIT}]'
+            key: 'check_domain["-d",{HOST.HOST},"-r",{$RDAP_SERVER},"-s",{$WHOIS_SERVER},"-w",{$EXP_WARN},"-c",{$EXP_CRIT}]'
         - uuid: 48baf9c076d1453d8c7272dffa014fd9
           name: 'Check Domain'
           type: EXTERNAL
-          key: 'check_domain.sh["-d",{HOST.HOST},"-r",{$RDAP_SERVER},"-s",{$WHOIS_SERVER},"-w",{$EXP_WARN},"-c",{$EXP_CRIT}]'
+          key: 'check_domain["-d",{HOST.HOST},"-r",{$RDAP_SERVER},"-s",{$WHOIS_SERVER},"-w",{$EXP_WARN},"-c",{$EXP_CRIT}]'
           delay: 1d
           history: '0'
           value_type: TEXT
@@ -92,7 +92,7 @@ zabbix_export:
               parameters:
                 - $.state
           master_item:
-            key: 'check_domain.sh["-d",{HOST.HOST},"-r",{$RDAP_SERVER},"-s",{$WHOIS_SERVER},"-w",{$EXP_WARN},"-c",{$EXP_CRIT}]'
+            key: 'check_domain["-d",{HOST.HOST},"-r",{$RDAP_SERVER},"-s",{$WHOIS_SERVER},"-w",{$EXP_WARN},"-c",{$EXP_CRIT}]'
       tags:
         - tag: domain
           value: registration

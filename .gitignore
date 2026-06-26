@@ -1,0 +1,21 @@
+# Build output
+/build/
+check_domain
+check_domain-*
+zabbix-domain-expiry
+
+# Go test binaries and coverage
+*.test
+*.out
+coverage.*
+*.coverprofile
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
