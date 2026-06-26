@@ -34,28 +34,26 @@ jobs:
       - name: Run Tests
         run: go test ./...
 
-      - name: Build Binaries
+      - name: Build Binary
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          VERSION=$VERSION make build-linux-amd64 build-linux-arm64
+          VERSION=$VERSION make build-linux-amd64
 
-      - name: Package Binaries
+      - name: Package Binary
         run: |
-          for arch in amd64 arm64; do
-            ARCHIVE_NAME="check_domain_${VERSION}_linux_${arch}.tar.gz"
-            cp "build/check_domain-linux-${arch}" check_domain
-            tar -czvf "$ARCHIVE_NAME" check_domain zbx_domain_expiry.yaml
-            rm check_domain
-          done
+          ARCHIVE_NAME="check_domain_${VERSION}_linux_amd64.tar.gz"
+          cp build/check_domain-linux-amd64 check_domain
+          tar -czvf "$ARCHIVE_NAME" check_domain zbx_domain_expiry.yaml
+          rm check_domain
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           files: |
-            check_domain_${{ env.VERSION }}_linux_amd64.tar.gz
-            check_domain_${{ env.VERSION }}_linux_arm64.tar.gz
+            ${{ env.ARCHIVE_NAME }}
             zbx_domain_expiry.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
