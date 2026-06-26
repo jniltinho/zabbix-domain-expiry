@@ -8,7 +8,7 @@ zabbix_export:
       template: 'Domain Expiry'
       name: 'Domain Expiry'
       description: |
-        Template version: 0.0.1
+        Template version: 0.0.3
         Downloaded from: https://github.com/jniltinho/zabbix-domain-expiry
       vendor:
         name: github.com/jniltinho
@@ -21,7 +21,9 @@ zabbix_export:
           type: DEPENDENT
           key: check_domain.days_left
           delay: '0'
+          history: '365d'
           value_type: FLOAT
+          units: d
           preprocessing:
             - type: JSONPATH
               parameters:
@@ -35,7 +37,9 @@ zabbix_export:
           type: DEPENDENT
           key: check_domain.days_since_expired
           delay: '0'
+          history: '365d'
           value_type: FLOAT
+          units: d
           preprocessing:
             - type: JSONPATH
               parameters:
@@ -104,9 +108,52 @@ zabbix_export:
           value: '30'
           description: 'Threshold value of days remaining before triggering a WARNING alert'
         - macro: '{$RDAP_SERVER}'
-          description: 'Specify which RDAP server to use. Default empty value will use IANA lookup'
+          value: '0'
+          description: 'Specify which RDAP server to use. Use 0 for IANA bootstrap lookup'
         - macro: '{$WHOIS_SERVER}'
-          description: 'Specify which WHOIS server to use. Default empty value will use built-in WHOIS lookup'
+          value: '0'
+          description: 'Specify which WHOIS server to use. Use 0 for built-in WHOIS lookup'
+      graphs:
+        - uuid: 80b638de74964bc3a654701f5180f85f
+          name: 'Days Left'
+          ymin_type_1: FIXED
+          yaxismin: '0'
+          graph_items:
+            - sortorder: '0'
+              drawtype: GRADIENT_LINE
+              color: 1A7C11
+              item:
+                host: 'Domain Expiry'
+                key: check_domain.days_left
+        - uuid: c4c9f229499241a689e107f73368792c
+          name: 'Days Since Expired'
+          ymin_type_1: FIXED
+          yaxismin: '0'
+          graph_items:
+            - sortorder: '0'
+              drawtype: GRADIENT_LINE
+              color: F63100
+              item:
+                host: 'Domain Expiry'
+                key: check_domain.days_since_expired
+        - uuid: 709595690ed54fa19a8c02c95061a9b2
+          name: 'Domain Expiry Status'
+          ymin_type_1: FIXED
+          yaxismin: '0'
+          graph_items:
+            - sortorder: '0'
+              drawtype: GRADIENT_LINE
+              color: 1A7C11
+              item:
+                host: 'Domain Expiry'
+                key: check_domain.days_left
+            - sortorder: '1'
+              drawtype: GRADIENT_LINE
+              color: F63100
+              yaxisside: RIGHT
+              item:
+                host: 'Domain Expiry'
+                key: check_domain.days_since_expired
   triggers:
     - uuid: 126653ca5057472c9499f5bcf74b17ba
       expression: |
